@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "surya-ocr"
+version = "0.2.2"
+description = "OCR and line detection in 90+ languages"
+authors = ["Vik Paruchuri <vik.paruchuri@gmail.com>"]
+readme = "README.md"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/VikParuchuri/surya"
+keywords = ["ocr", "pdf", "text detection", "text recognition"]
+packages = [
+    {include = "surya"}
+]
+include = [
+    "detect_text.py",
+    "ocr_text.py",
+    "ocr_app.py",
+    "run_ocr_app.py"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13,!=3.9.7"
+transformers = "4.36.2"
+torch = "^2.1.2"
+pydantic = "^2.5.3"
+pydantic-settings = "^2.1.0"
+python-dotenv = "^1.0.0"
+pillow = "^10.2.0"
+pypdfium2 = "^4.25.0"
+opencv-python = "^4.9.0.80"
+tabulate = "^0.9.0"
+filetype = "^1.2.0"
+
+[tool.poetry.group.dev.dependencies]
+jupyter = "^1.0.0"
+pytesseract = "^0.3.10"
+pymupdf = "^1.23.8"
+snakeviz = "^2.2.0"
+datasets = "^2.16.1"
+rapidfuzz = "^3.6.1"
+arabic-reshaper = "^3.0.0"
+streamlit = "^1.31.0"
+
+[tool.poetry.scripts]
+surya_detect = "detect_text:main"
+surya_ocr = "ocr_text:main"
+surya_gui = "run_ocr_app:run_app"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

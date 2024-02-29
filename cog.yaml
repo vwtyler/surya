@@ -1,0 +1,45 @@
+# Configuration for Cog ⚙️
+# Reference: https://github.com/replicate/cog/blob/main/docs/yaml.md
+
+build:
+  # set to true if your model requires a GPU
+  gpu: true
+
+  # a list of ubuntu apt packages to install
+  system_packages:
+    - "libgl1-mesa-glx"
+    - "libglib2.0-0"
+
+  # python version in the form '3.11' or '3.11.4'
+  python_version: "3.11"
+
+  # a list of packages in the format <package-name>==<version>
+  python_packages:
+    - "surya-ocr"
+    - "torch"
+    # - "pydantic==2.5.3"
+    # - "pydantic-settings==1.99"
+    # - "pydantic_core==2.16.1"
+
+  # commands run after the environment is setup
+  run:
+    - "echo env is ready!"
+    # - "apt-get update && apt-get install -y python3-venv"
+    # - "python3 -m venv env"
+    # - "/bin/bash -c 'source env/bin/activate'"
+    # - "pip install --upgrade pydantic==2.6.0"
+    - "pip uninstall pillow -y"
+    - "pip install Pillow==9.5.0"
+    # - "pip install pydantic_core==2.16.1"
+    # - "pip install surya-ocr"
+    # - "pip install torch  "
+    # - "pip uninstall pydantic -y"
+    # - "pip uninstall pydantic -y"
+    # # - "pip install --upgrade fastapi"
+    # - "pip install pydantic==1.9"
+    # - "pip install pydantic==2.6.0"
+    # - "pip install pydantic-settings==2.1.0"
+    # - "pip install pydantic_core==2.16.1"
+
+# predict.py defines how predictions are run on your model
+predict: "predict.py:Predictor"
