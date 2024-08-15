@@ -13,7 +13,7 @@ from surya.languages import CODE_TO_LANGUAGE
 from surya.input.langs import replace_lang_with_code
 from surya.schema import OCRResult, DetectionResult
 
-# Assuming the necessary model loading functions are correctly defined
+# Load models and processors
 det_model, det_processor = load_model(), load_processor()
 rec_model, rec_processor = load_rec_model(), load_rec_processor()
 
@@ -35,55 +35,67 @@ def ocr(img, langs) -> OCRResult:
 def open_pdf(pdf_file_path):
     return pypdfium2.PdfDocument(pdf_file_path)
 
-def get_page_image(pdf_file_path, page_num, dpi=96):
+def get_all_page_images(pdf_file_path, dpi=96):
     doc = open_pdf(pdf_file_path)
-    renderer = doc.render(
-        pypdfium2.PdfBitmap.to_pil,
-        page_indices=[page_num - 1],
-        scale=dpi / 72,
-    )
-    png = list(renderer)[0]
-    png_image = png.convert("RGB")
-    return png_image
+    images = []
+    for page_index in range(len(doc)):
+        renderer = doc.render(
+            pypdfium2.PdfBitmap.to_pil,
+            page_indices=[page_index],
+            scale=dpi / 72,
+        )
+        png = list(renderer)[0]
+        png_image = png.convert("RGB")
+        images.append(png_image)
+    return images
 
-def handle_input(file_info, page_number, languages, action):
+def handle_input(file_info, languages, action):
     if file_info is None:
         return None, "Please upload a file.", None
     
     filetype = file_info.name.split('.')[-1].lower()
     if filetype == 'pdf':
-        pil_image = get_page_image(file_info.name, page_number)
+        pil_images = get_all_page_images(file_info.name)
     else:
-        pil_image = Image.open(file_info.name).convert("RGB")
+        pil_images = [Image.open(file_info.name).convert("RGB")]
     
+    all_text = []
     if action == "Display Image":
-        # Simply display the uploaded image or the selected PDF page
-        return pil_image, "Displaying uploaded image.", None    
+        # Display the first page or the image
+        return pil_images[0], "Displaying uploaded image.", None    
     elif action == "Run Text Detection":
-        det_img, _ = text_detection(pil_image)
-        return det_img, "Text detection completed.", None
+        detection_images = []
+        for i, pil_image in enumerate(pil_images):
+            det_img, _ = text_detection(pil_image)
+            detection_images.append(det_img)
+        return detection_images[0], "Text detection completed on all pages.", None
     elif action == "Run OCR":
-        rec_img, ocr_result = ocr(pil_image, languages)
-        ocr_json = json.dumps(ocr_result.model_dump(), ensure_ascii=False)
-        text_lines = "\n".join([line.text for line in ocr_result.text_lines])
-        # Save the text lines to a file
-        txt_file_path = "ocr_text.txt"
+        ocr_images = []
+        for i, pil_image in enumerate(pil_images):
+            rec_img, ocr_result = ocr(pil_image, languages)
+            ocr_images.append(rec_img)
+            text_lines = "\n".join([line.text for line in ocr_result.text_lines])
+            all_text.append(text_lines)
+        
+        # Save the text lines from all pages to a file
+        full_text_content = "\n\n".join(all_text)
+        txt_file_path = "full_ocr_text.txt"
         with open(txt_file_path, "w", encoding="utf-8") as text_file:
-            text_file.write(text_lines)
-        return rec_img, "OCR completed.", txt_file_path
+            text_file.write(full_text_content)
+        return ocr_images[0], "OCR completed on all pages.", txt_file_path
     else:
         return None, "Please select an action.", None
 
 languages = sorted(list(CODE_TO_LANGUAGE.values()))
-action = gr.Radio(["Display Image","Run Text Detection", "Run OCR"], label="Action")
-page_number = gr.Number(label="Page Number", value=1, visible=lambda action: action == "Display Image" or action == "Run Text Detection" or action == "Run OCR")
+action = gr.Radio(["Display Image", "Run Text Detection", "Run OCR"], label="Action")
 
 iface = gr.Interface(
     fn=handle_input,
-    inputs=[gr.File(label="Upload PDF or Image"), page_number, gr.Dropdown(choices=languages, label="Languages", value=["English"], multiselect=True), action],
+    inputs=[gr.File(label="Upload PDF or Image"), gr.Dropdown(choices=languages, label="Languages", value=["English"], multiselect=True), action],
     outputs=[gr.Image(label="Output Image"), gr.Text(label="Status Message"), gr.File(label="Download OCR Text")],
-    examples=[["invoice.png", 1, ["English"], "Display Image"],["LIC-Education.pdf", 1, ["English"], "Run Text Detection"],["Suriya.png", 1, ["English"], "Run OCR"]],
+    examples=[["invoice.png", ["English"], "Display Image"], ["LIC-Education.pdf", ["English"], "Run Text Detection"], ["Suriya.png", ["English"], "Run OCR"]],
     title="OCR Suriya",
     description="This app lets you try Suriya, a multilingual OCR model supporting text detection in any language and text recognition in 90+ languages."
 )
+
 iface.launch(share=True)

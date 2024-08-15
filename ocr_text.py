@@ -16,7 +16,7 @@ import os
 
 def main():
     parser = argparse.ArgumentParser(description="Detect bboxes in an input file or folder (PDFs or image).")
-    parser.add_argument("input_path", type=str, help="Path to pdf or image file or folder to detect bboxes in.")
+    parser.add_argument("input_path", type=str, help="Path to PDF or image file or folder to detect bboxes in.")
     parser.add_argument("--results_dir", type=str, help="Path to JSON file with OCR results.", default=os.path.join(settings.RESULT_DIR, "surya"))
     parser.add_argument("--max", type=int, help="Maximum number of pages to process.", default=None)
     parser.add_argument("--start_page", type=int, help="Page to start processing at.", default=0)
@@ -46,18 +46,21 @@ def main():
         replace_lang_with_code(langs)
         image_langs = [langs] * len(images)
 
+    # Load models and processors
     det_processor = load_detection_processor()
     det_model = load_detection_model()
 
     _, lang_tokens = _tokenize("", get_unique_langs(image_langs))
-    rec_model = load_recognition_model(langs=lang_tokens) # Prune model moe layer to only include languages we need
+    rec_model = load_recognition_model(langs=lang_tokens)  # Prune model moe layer to only include languages we need
     rec_processor = load_recognition_processor()
 
     result_path = os.path.join(args.results_dir, folder_name)
     os.makedirs(result_path, exist_ok=True)
 
+    # Run OCR on all loaded images
     predictions_by_image = run_ocr(images, image_langs, det_model, det_processor, rec_model, rec_processor)
 
+    # Save images with detected text if requested
     if args.images:
         for idx, (name, image, pred) in enumerate(zip(names, images, predictions_by_image)):
             bboxes = [l.bbox for l in pred.text_lines]
@@ -65,12 +68,14 @@ def main():
             page_image = draw_text_on_image(bboxes, pred_text, image.size)
             page_image.save(os.path.join(result_path, f"{name}_{idx}_text.png"))
 
+    # Organize predictions by image name
     out_preds = defaultdict(list)
     for name, pred, image in zip(names, predictions_by_image, images):
         out_pred = pred.model_dump()
         out_pred["page"] = len(out_preds[name]) + 1
         out_preds[name].append(out_pred)
 
+    # Write results to JSON file
     with open(os.path.join(result_path, "results.json"), "w+") as f:
         json.dump(out_preds, f, ensure_ascii=False)
 
@@ -79,10 +84,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
